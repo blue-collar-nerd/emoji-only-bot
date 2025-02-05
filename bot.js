@@ -32,8 +32,8 @@ client.on("messageCreate", async (message) => {
     // Only proceed if a valid channel ID is set and the message is in that channel
     if (!channelID || message.channel.id !== channelID) return;
 
-    // Regex to match only emojis (including multiple emojis)
-    const emojiOnlyRegex = /^([\p{Emoji}|\p{Extended_Pictographic}|\p{Emoji_Component}\uFE0F|\p{Emoji_Modifier}\uFE0F]+)$/gu;
+    // Updated regex to match emoji-only messages and allow colons
+    const emojiOnlyRegex = /^([a-zA-Z0-9\p{Emoji}\uFE0F\u200B:]*|\p{Emoji})+$/gu;
 
     // If the message isn't emoji-only, delete it
     if (!emojiOnlyRegex.test(message.content)) {
