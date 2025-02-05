@@ -1,48 +1,37 @@
-require("dotenv").config();
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
+require('dotenv').config();
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ],
+    partials: [Partials.Channel]
 });
 
-let channelID = null;
+let monitoredChannel = null;
 
-client.once("ready", () => {
+client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-client.on("messageCreate", async (message) => {
-    // Ignore bot's own messages and non-command messages
-    if (message.author.bot) return;
-
-    // Check for the 'Setchannel' command
-    if (message.content.startsWith("!setchannel") && message.member.permissions.has("ADMINISTRATOR")) {
-        const args = message.content.split(" ");
-        
-        // Make sure the command includes a channel ID
-        if (args[1]) {
-            channelID = args[1];
-            console.log(`📌 Channel set to: ${channelID}`);
-            message.reply(`Channel set to: ${channelID}`);
-        } else {
-            message.reply("Please provide a valid channel ID.");
-        }
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+    
+    if (interaction.commandName === 'setchannel') {
+        monitoredChannel = interaction.channel.id;
+        await interaction.reply(`✅ Emoji moderation enabled in <#${monitoredChannel}>`);
     }
+});
 
-    // Only proceed if a valid channel ID is set and the message is in that channel
-    if (!channelID || message.channel.id !== channelID) return;
-
-    // Updated regex to match emoji-only messages and allow colons
-    const emojiOnlyRegex = /^([a-zA-Z0-9\p{Emoji}\uFE0F\u200B:]*|\p{Emoji})+$/gu;
-
-    // If the message isn't emoji-only, delete it
+client.on('messageCreate', async message => {
+    if (message.author.bot || !monitoredChannel || message.channel.id !== monitoredChannel) return;
+    
+    const emojiOnlyRegex = /^(?:\p{Extended_Pictographic}|<a?:\w+:\d+>)+$/u;
+    
     if (!emojiOnlyRegex.test(message.content)) {
-        try {
-            await message.delete();
-            console.log(`❌ Deleted non-emoji message from ${message.author.username}`);
-        } catch (error) {
-            console.error("Error deleting message:", error);
-        }
+        await message.delete().catch(console.error);
     }
 });
 
