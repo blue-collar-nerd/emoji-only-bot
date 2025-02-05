@@ -1,54 +1,34 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-require('dotenv').config();
+require("dotenv").config();
+const { Client, GatewayIntentBits } = require("discord.js");
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+        GatewayIntentBits.MessageContent,
+    ],
 });
 
-let moderatedChannelId = null; // Stores the channel ID to moderate
+const CHANNEL_ID = process.env.CHANNEL_ID;
 
-// Command to set the moderated channel
-client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith('!setchannel') || message.author.bot) return;
-
-    const args = message.content.split(' ');
-    if (args.length < 2) {
-        return message.reply('Usage: `!setchannel <channel-id>`');
-    }
-
-    moderatedChannelId = args[1];
-    message.reply(`✅ Moderation enabled for <#${moderatedChannelId}>.`);
+client.once("ready", () => {
+    console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// Emoji-only message detection & moderation
-client.on('messageCreate', async (message) => {
-    if (message.author.bot || !moderatedChannelId || message.channel.id !== moderatedChannelId) return;
+client.on("messageCreate", async (message) => {
+    if (message.author.bot || message.channel.id !== CHANNEL_ID) return;
 
-    // Updated regex: Only allows multiple emojis (Unicode & Discord custom), with optional spaces
-    const emojiOnlyRegex = /^(\s*(?:[\p{Extended_Pictographic}]|<a?:\w+:\d+>)\s*)+$/u;
+    // Match only emoji messages (including multiple emojis)
+    const emojiOnlyRegex = /^(?:\p{Emoji}|\p{Extended_Pictographic}|\<a?:\w+:\d+\>)+$/u;
 
-    // If message contains anything other than emojis, delete it
-    if (!emojiOnlyRegex.test(message.content.trim())) {
+    if (!emojiOnlyRegex.test(message.content)) {
         try {
             await message.delete();
-            message.channel.send(`${message.author}, only emojis are allowed in this channel! 🚫`)
-                .then(msg => setTimeout(() => msg.delete().catch(() => {}), 3000)); // Auto-delete warning after 3 sec
+            console.log(`🗑 Deleted message from ${message.author.tag}: "${message.content}"`);
         } catch (error) {
-            if (error.code !== 10008) { // Ignore "Unknown Message" error
-                console.error('Failed to delete message:', error);
-            }
+            console.error("❌ Error deleting message:", error);
         }
     }
 });
 
-// Bot ready event
-client.once('ready', () => {
-    console.log(`✅ Logged in as ${client.user.tag}`);
-});
-
-// Log in the bot using the token from the .env file
 client.login(process.env.TOKEN);
